@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DEEP FRIED ADVICE MACHINE</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bungee+Shade&family=Comic+Neue:wght@700&family=Bangers&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --fry-level: 0;
+    --saturation: 100%;
+    --hue-rotate: 0deg;
+    --blur: 0px;
+    --contrast: 100%;
+    --brightness: 100%;
+  }
+
+  body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #1a0a00;
+    overflow: hidden;
+    font-family: 'Comic Neue', cursive;
+    position: relative;
+  }
+
+  /* Scanlines overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.15) 2px,
+      rgba(0,0,0,0.15) 4px
+    );
+    pointer-events: none;
+    z-index: 1000;
+    mix-blend-mode: multiply;
+  }
+
+  /* Background noise texture */
+  .noise-overlay {
+    position: fixed;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.4'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.3;
+    mix-blend-mode: overlay;
+    animation: noiseMove 0.5s steps(3) infinite;
+  }
+
+  @keyframes noiseMove {
+    0% { transform: translate(0, 0); }
+    33% { transform: translate(-5px, 3px); }
+    66% { transform: translate(3px, -5px); }
+    100% { transform: translate(0, 0); }
+  }
+
+  /* Title */
+  .title-container {
+    text-align: center;
+    margin-bottom: 30px;
+    position: relative;
+    z-index: 10;
+  }
+
+  .title {
+    font-family: 'Bungee Shade', cursive;
+    font-size: clamp(1.8rem, 5vw, 3.5rem);
+    color: #ff6b00;
+    text-shadow:
+      3px 3px 0 #ff0000,
+      -2px -2px 0 #ffff00,
+      0 0 20px rgba(255, 100, 0, 0.8),
+      0 0 40px rgba(255, 0, 0, 0.5);
+    letter-spacing: 2px;
+    animation: titlePulse 0.8s ease-in-out infinite alternate;
+    -webkit-text-stroke: 1px #ff0000;
+  }
+
+  @keyframes titlePulse {
+    from { transform: scale(1); filter: hue-rotate(0deg); }
+    to { transform: scale(1.03); filter: hue-rotate(15deg); }
+  }
+
+  .subtitle {
+    font-family: 'Bangers', cursive;
+    font-size: clamp(0.9rem, 2vw, 1.3rem);
+    color: #ffaa00;
+    text-shadow: 2px 2px 0 #880000;
+    margin-top: 8px;
+    letter-spacing: 4px;
+    opacity: 0.9;
+  }
+
+  /* Fry level indicator */
+  .fry-meter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 25px;
+    z-index: 10;
+    background: rgba(0,0,0,0.6);
+    padding: 10px 20px;
+    border-radius: 50px;
+    border: 2px solid #ff6b00;
+  }
+
+  .fry-meter-label {
+    font-family: 'Bangers', cursive;
+    color: #ff6b00;
+    font-size: 1rem;
+    letter-spacing: 2px;
+    white-space: nowrap;
+  }
+
+  .fry-meter-bar {
+    width: 150px;
+    height: 14px;
+    background: #330000;
+    border-radius: 7px;
+    overflow: hidden;
+    border: 1px solid #ff4400;
+  }
+
+  .fry-meter-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #ff6b00, #ff0000, #ff00ff);
+    border-radius: 7px;
+    transition: width 0.3s;
+    box-shadow: 0 0 10px #ff0000;
+  }
+
+  .fry-meter-value {
+    font-family: 'Bangers', cursive;
+    color: #ff4400;
+    font-size: 1.1rem;
+    min-width: 30px;
+    text-align: right;
+  }
+
+  /* Advice card */
+  .advice-card {
+    width: min(90vw, 500px);
+    min-height: 250px;
+    background: linear-gradient(135deg, #ff8800, #ff4400, #cc0000);
+    border-radius: 12px;
+    border: 4px solid #ffaa00;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    position: relative;
+    z-index: 10;
+    overflow: hidden;
+    transition: filter 0.3s;
+    box-shadow:
+      0 0 30px rgba(255, 100, 0, 0.5),
+      inset 0 0 50px rgba(0,0,0,0.3);
+  }
+
+  .advice-card.active {
+    animation: cardShake 0.15s ease-in-out;
+  }
+
+  @keyframes cardShake {
+    0%, 100% { transform: translate(0); }
+    25% { transform: translate(-5px, 3px) rotate(-1deg); }
+    50% { transform: translate(3px, -3px) rotate(1deg); }
+    75% { transform: translate(-3px, -2px) rotate(-0.5deg); }
+  }
+
+  .advice-text {
+    font-family: 'Comic Neue', cursive;
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+    color: #ffffff;
+    text-align: center;
+    font-weight: 700;
+    text-shadow:
+      2px 2px 0 #000000,
+      -1px -1px 0 #ff0000;
+    line-height: 1.3;
+    position: relative;
+    z-index: 5;
+    transition: all 0.2s;
+    word-break: break-word;
+  }
+
+  .advice-placeholder {
+    font-family: 'Bangers', cursive;
+    font-size: 1.3rem;
+    color: rgba(255,255,255,0.5);
+    text-align: center;
+    letter-spacing: 3px;
+  }
+
+  /* Floating emojis inside card */
+  .floating-emoji {
+    position: absolute;
+    font-size: 2rem;
+    pointer-events: none;
+    z-index: 2;
+    animation: floatEmoji 2s ease-out forwards;
+    opacity: 0;
+  }
+
+  @keyframes floatEmoji {
+    0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(0.5); }
+    50% { opacity: 0.8; }
+    100% { opacity: 0; transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(1.5); }
+  }
+
+  /* Lens flare */
+  .lens-flare {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.9), rgba(255,200,0,0.4), transparent 70%);
+    pointer-events: none;
+    z-index: 20;
+    animation: flareAppear 0.8s ease-out forwards;
+    mix-blend-mode: screen;
+  }
+
+  @keyframes flareAppear {
+    0% { opacity: 0; transform: scale(0.3); }
+    30% { opacity: 1; }
+    100% { opacity: 0; transform: scale(2); }
+  }
+
+  /* Bottom text (appears briefly) */
+  .bottom-text-container {
+    position: absolute;
+    bottom: 15px;
+    left: 0; right: 0;
+    text-align: center;
+    z-index: 30;
+  }
+
+  .bottom-text {
+    font-family: 'Bangers', cursive;
+    font-size: 1rem;
+    color: #ffffff;
+    text-shadow: 2px 2px 0 #000;
+    letter-spacing: 3px;
+    opacity: 0;
+    transition: opacity 0.1s;
+  }
+
+  .bottom-text.show {
+    opacity: 1;
+    animation: bottomFlash 0.5s ease-out forwards;
+  }
+
+  @keyframes bottomFlash {
+    0% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  /* Buttons */
+  .button-row {
+    display: flex;
+    gap: 15px;
+    margin-top: 25px;
+    z-index: 10;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .btn {
+    font-family: 'Bangers', cursive;
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+    padding: 14px 28px;
+    border: 3px solid #ffaa00;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    overflow: hidden;
+    text-transform: uppercase;
+  }
+
+  .btn-fry {
+    background: linear-gradient(135deg, #ff6b00, #ff0000);
+    color: #ffffff;
+    text-shadow: 1px 1px 0 #880000;
+    box-shadow: 0 0 15px rgba(255, 100, 0, 0.5);
+  }
+
+  .btn-fry:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 25px rgba(255, 100, 0, 0.8);
+    filter: brightness(1.2);
+  }
+
+  .btn-fry:active {
+    transform: scale(0.95);
+  }
+
+  .btn-enhance {
+    background: linear-gradient(135deg, #ff0000, #cc00ff);
+    color: #ffff00;
+    text-shadow: 1px 1px 0 #440044;
+    box-shadow: 0 0 15px rgba(200, 0, 255, 0.5);
+    animation: enhancePulse 1.5s ease-in-out infinite alternate;
+  }
+
+  @keyframes enhancePulse {
+    from { box-shadow: 0 0 15px rgba(200, 0, 255, 0.5); }
+    to { box-shadow: 0 0 30px rgba(255, 0, 100, 0.8); }
+  }
+
+  .btn-enhance:hover {
+    transform: scale(1.05);
+    filter: brightness(1.3) saturate(1.5);
+  }
+
+  .btn-enhance:active {
+    transform: scale(0.95);
+  }
+
+  .btn-reset {
+    background: rgba(0,0,0,0.6);
+    color: #888;
+    border-color: #444;
+    font-size: 0.9rem;
+    padding: 10px 18px;
+    box-shadow: none;
+  }
+
+  .btn-reset:hover {
+    color: #ccc;
+    border-color: #888;
+  }
+
+  /* Counter */
+  .fry-count {
+    margin-top: 15px;
+    font-family: 'Bangers', cursive;
+    color: #ff6b00;
+    font-size: 0.9rem;
+    letter-spacing: 3px;
+    z-index: 10;
+    opacity: 0.7;
+  }
+
+  /* JPEG artifact overlay on card */
+  .jpeg-artifacts {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 15;
+    opacity: 0;
+    background: repeating-conic-gradient(
+      rgba(255,0,0,0.1) 0% 25%,
+      transparent 0% 50%
+    ) 0 0 / 8px 8px;
+    mix-blend-mode: color-dodge;
+  }
+
+  /* Glitch text copies */
+  .glitch-layer {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    pointer-events: none;
+    z-index: 4;
+    opacity: 0;
+  }
+
+  .glitch-layer .advice-text {
+    color: #00ffff;
+    mix-blend-mode: screen;
+  }
+
+  .glitch-layer.red .advice-text {
+    color: #ff0000;
+  }
+
+  /* Background decoration */
+  .bg-emoji-float {
+    position: fixed;
+    font-size: 3rem;
+    opacity: 0.1;
+    pointer-events: none;
+    z-index: 1;
+    animation: bgFloat 8s ease-in-out infinite;
+  }
+
+  @keyframes bgFloat {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-30px) rotate(10deg); }
+  }
+
+  /* Disclaimer */
+  .disclaimer {
+    position: fixed;
+    bottom: 10px;
+    font-family: 'Comic Neue', cursive;
+    font-size: 0.7rem;
+    color: rgba(255,100,0,0.3);
+    z-index: 10;
+    text-align: center;
+    padding: 0 20px;
+  }
+
+  /* Chromatic aberration on high fry */
+  @keyframes chromatic {
+    0% { text-shadow: 2px 0 #ff0000, -2px 0 #00ffff, 0 2px #ff00ff; }
+    33% { text-shadow: -2px 0 #ff0000, 2px 0 #00ffff, 0 -2px #ff00ff; }
+    66% { text-shadow: 0 2px #ff0000, 0 -2px #00ffff, 2px 0 #ff00ff; }
+    100% { text-shadow: 2px 0 #ff0000, -2px 0 #00ffff, 0 2px #ff00ff; }
+  }
+
+  @keyframes cardGlitch {
+    0%, 90%, 100% { transform: translate(0); }
+    92% { transform: translate(-8px, 3px); }
+    94% { transform: translate(5px, -2px); }
+    96% { transform: translate(-3px, 5px); }
+    98% { transform: translate(6px, -4px); }
+  }
+
+  @keyframes pixelate {
+    0%, 95%, 100% { filter: none; }
+    96% { filter: contrast(3) saturate(5); }
+    97% { filter: contrast(1) saturate(8) hue-rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<div class="noise-overlay"></div>
+
+<div class="title-container">
+  <div class="title">DEEP FRIED ADVICE</div>
+  <div class="subtitle">🔥 M A C H I N E 🔥</div>
+</div>
+
+<div class="fry-meter">
+  <span class="fry-meter-label">FRY LVL:</span>
+  <div class="fry-meter-bar">
+    <div class="fry-meter-fill" id="fryFill"></div>
+  </div>
+  <span class="fry-meter-value" id="fryValue">0</span>
+</div>
+
+<div class="advice-card" id="adviceCard">
+  <div class="glitch-layer" id="glitchCyan">
+    <div class="advice-text" id="glitchTextCyan"></div>
+  </div>
+  <div class="glitch-layer red" id="glitchRed">
+    <div class="advice-text" id="glitchTextRed"></div>
+  </div>
+  <div class="jpeg-artifacts" id="jpegArtifacts"></div>
+  <div class="advice-text" id="adviceText">
+    <span class="advice-placeholder">PRESS THE BUTTON<br>GET WISDOM</span>
+  </div>
+  <div class="bottom-text-container">
+    <div class="bottom-text" id="bottomText"></div>
+  </div>
+</div>
+
+<div class="button-row">
+  <button class="btn btn-fry" id="fryBtn" onclick="getAdvice()">🍳 FRY ADVICE</button>
+  <button class="btn btn-enhance" id="enhanceBtn" onclick="enhanceFrying()">⚡ ENHANCE FRYING</button>
+  <button class="btn btn-reset" onclick="resetFry()">↩ UNFRY</button>
+</div>
+
+<div class="fry-count" id="fryCount">TOTAL FRIES: 0</div>
+
+<div class="disclaimer">advice quality degrades with each fry • we are not responsible for burnt wisdom • 100% of advice is unreadable by design</div>
+
+<script>
+const adviceList = [
+  "DRINK WATER",
+  "GO OUTSIDE",
+  "TOUCH GRASS",
+  "SLEEP MORE",
+  "EAT FOOD",
+  "TAKE A WALK",
+  "BREATHE AIR",
+  "STRETCH",
+  "CALL YOUR MOM",
+  "READ A BOOK",
+  "EXERCISE",
+  "BE NICE",
+  "BRUSH YOUR TEETH",
+  "WASH YOUR HANDS",
+  "SIT UP STRAIGHT",
+  "TAKE A BREAK",
+  "DRINK LESS COFFEE",
+  "WEAR SUNSCREEN",
+  "FLOSS",
+  "GO TO BED EARLY",
+  "HYDRATE OR DIEDRATE",
+  "LOG OFF",
+  "STOP SCROLLING",
+  "CLOSE THIS APP",
+  "RELAX BRO",
+  "SMILE MORE",
+  "CLEAN YOUR ROOM",
+  "DO LAUNDRY",
+  "CALL YOUR GRANDMA",
+  "JUST BREATHE",
+];
+
+const bottomTexts = [
+  "BOTTOM TEXT", "SOCIETY", "WE LIVE IN A SOCIETY", "GAMERS RISE UP",
+  "THIS IS SO DEEP", "LIKE AND SUBSCRIBE", "REAL", "NO CAP FR FR",
+  "SLAY", "BASED", "LITERALLY ME", "BIG IF TRUE",
+  "SOURCE: TRUST ME BRO", "NOT CLICKBAIT", "GONE WRONG",
+  "EMOTIONAL DAMAGE", "WAKE UP SHEEPLE", "IT DO BE LIKE THAT",
+];
+
+const chaosEmojis = [
+  "🔥","💀","😂","🗿","💯","⚡","🤯","😤","👁️","🫠",
+  "💅","🦀","🌶️","☠️","🤡","😈","🥴","🧠","💥","✨",
+  "👀","🫡","😭","🙏","💪","🤌","🎯","🔊","⭐","🌈",
+];
+
+let fryLevel = 0;
+let totalFries = 0;
+let currentAdvice = "";
+
+const card = document.getElementById('adviceCard');
+const textEl = document.getElementById('adviceText');
+const bottomTextEl = document.getElementById('bottomText');
+const fryFill = document.getElementById('fryFill');
+const fryValue = document.getElementById('fryValue');
+const fryCount = document.getElementById('fryCount');
+const glitchCyan = document.getElementById('glitchCyan');
+const glitchRed = document.getElementById('glitchRed');
+const glitchTextCyan = document.getElementById('glitchTextCyan');
+const glitchTextRed = document.getElementById('glitchTextRed');
+const jpegArtifacts = document.getElementById('jpegArtifacts');
+
+function getAdvice() {
+  fryLevel = Math.min(fryLevel + 1, 20);
+  totalFries++;
+  currentAdvice = adviceList[Math.floor(Math.random() * adviceList.length)];
+
+  applyFrying();
+  triggerEffects();
+  updateMeters();
+}
+
+function enhanceFrying() {
+  if (!currentAdvice) {
+    // Give them something to fry first
+    getAdvice();
+    return;
+  }
+  fryLevel = Math.min(fryLevel + 3, 20);
+  totalFries += 3;
+
+  applyFrying();
+  triggerEffects();
+  triggerEffects(); // double the chaos
+  updateMeters();
+
+  // Screen flash
+  card.style.filter = `brightness(3) saturate(10) contrast(5)`;
+  setTimeout(() => applyCardFilter(), 150);
+}
+
+function applyFrying() {
+  let display = currentAdvice;
+
+  // Add random emojis based on fry level
+  if (fryLevel >= 2) {
+    const emojiCount = Math.min(fryLevel, 12);
+    for (let i = 0; i < emojiCount; i++) {
+      const emoji = chaosEmojis[Math.floor(Math.random() * chaosEmojis.length)];
+      const pos = Math.floor(Math.random() * (display.length + 1));
+      display = display.slice(0, pos) + emoji + display.slice(pos);
+    }
+  }
+
+  // Text corruption at higher levels
+  if (fryLevel >= 5) {
+    display = corruptText(display, fryLevel);
+  }
+
+  // Apply visual text styles
+  const fontSize = Math.max(1, 2.5 - fryLevel * 0.05);
+  textEl.style.fontSize = `clamp(1rem, ${fontSize * 2}vw, ${fontSize}rem)`;
+  textEl.innerHTML = display;
+
+  // Glitch layers
+  if (fryLevel >= 4) {
+    glitchTextCyan.innerHTML = display;
+    glitchTextRed.innerHTML = display;
+    const offset = Math.min(fryLevel * 1.5, 15);
+    glitchCyan.style.opacity = Math.min(fryLevel * 0.08, 0.6);
+    glitchRed.style.opacity = Math.min(fryLevel * 0.08, 0.6);
+    glitchCyan.style.transform = `translate(${offset}px, -${offset/2}px)`;
+    glitchRed.style.transform = `translate(-${offset}px, ${offset/2}px)`;
+  }
+
+  // JPEG artifacts overlay
+  jpegArtifacts.style.opacity = Math.min(fryLevel * 0.06, 0.7);
+
+  // Card filter
+  applyCardFilter();
+
+  // Chromatic aberration on text
+  if (fryLevel >= 6) {
+    textEl.style.animation = `chromatic ${Math.max(0.1, 0.5 - fryLevel * 0.02)}s linear infinite`;
+  }
+
+  // Card glitch animation
+  if (fryLevel >= 8) {
+    card.style.animation = `cardGlitch ${Math.max(0.3, 2 - fryLevel * 0.1)}s steps(1) infinite`;
+  }
+
+  // Comic Sans at extreme levels
+  if (fryLevel >= 12) {
+    textEl.style.fontFamily = `'Comic Sans MS', 'Comic Neue', cursive`;
+  }
+
+  // Background color chaos
+  const hueShift = fryLevel * 18;
+  const sat = 100 + fryLevel * 30;
+  card.style.background = `linear-gradient(${135 + fryLevel * 15}deg,
+    hsl(${30 + hueShift}, ${sat}%, 50%),
+    hsl(${0 + hueShift}, ${sat}%, 40%),
+    hsl(${330 + hueShift}, ${sat}%, 30%))`;
+
+  // Show bottom text briefly
+  showBottomText();
+}
+
+function applyCardFilter() {
+  const sat = 1 + fryLevel * 0.4;
+  const contrast = 1 + fryLevel * 0.15;
+  const brightness = 1 + fryLevel * 0.05;
+  const hue = fryLevel * 8;
+  const blur = fryLevel >= 15 ? Math.min((fryLevel - 14) * 0.5, 2) : 0;
+
+  card.style.filter = `saturate(${sat}) contrast(${contrast}) brightness(${brightness}) hue-rotate(${hue}deg) blur(${blur}px)`;
+}
+
+function corruptText(text, level) {
+  const corruptions = ['̸̡', '̶̢', '̷̧', '̴̨', '̵̛', '̸̡', '̶̢', '̷̧'];
+  const glitchChars = ['█', '▓', '▒', '░', '■', '▪', '◼', '⬛'];
+  let result = '';
+
+  for (let i = 0; i < text.length; i++) {
+    result += text[i];
+    // Add zalgo-like corruption
+    if (level >= 7 && Math.random() < (level - 5) * 0.06) {
+      const numCorrupt = Math.floor(Math.random() * Math.min(level - 4, 5));
+      for (let j = 0; j < numCorrupt; j++) {
+        result += corruptions[Math.floor(Math.random() * corruptions.length)];
+      }
+    }
+    // Replace chars with blocks
+    if (level >= 10 && Math.random() < (level - 8) * 0.04) {
+      result += glitchChars[Math.floor(Math.random() * glitchChars.length)];
+    }
+  }
+
+  // At extreme levels, randomly uppercase/lowercase
+  if (level >= 13) {
+    result = result.split('').map(c =>
+      Math.random() > 0.5 ? c.toUpperCase() : c.toLowerCase()
+    ).join('');
+  }
+
+  return result;
+}
+
+function triggerEffects() {
+  // Shake card
+  card.classList.remove('active');
+  void card.offsetWidth;
+  card.classList.add('active');
+
+  // Spawn floating emojis
+  const emojiCount = Math.min(3 + fryLevel, 15);
+  for (let i = 0; i < emojiCount; i++) {
+    setTimeout(() => spawnFloatingEmoji(), i * 60);
+  }
+
+  // Lens flares at higher levels
+  if (fryLevel >= 3) {
+    const flareCount = Math.min(Math.floor(fryLevel / 3), 4);
+    for (let i = 0; i < flareCount; i++) {
+      setTimeout(() => spawnLensFlare(), i * 150);
+    }
+  }
+}
+
+function spawnFloatingEmoji() {
+  const emoji = document.createElement('div');
+  emoji.className = 'floating-emoji';
+  emoji.textContent = chaosEmojis[Math.floor(Math.random() * chaosEmojis.length)];
+  emoji.style.left = Math.random() * 80 + 10 + '%';
+  emoji.style.top = Math.random() * 80 + 10 + '%';
+  emoji.style.setProperty('--tx', (Math.random() - 0.5) * 200 + 'px');
+  emoji.style.setProperty('--ty', (Math.random() - 0.5) * 200 + 'px');
+  emoji.style.setProperty('--rot', (Math.random() - 0.5) * 720 + 'deg');
+  emoji.style.fontSize = (1.5 + Math.random() * 2) + 'rem';
+  card.appendChild(emoji);
+  setTimeout(() => emoji.remove(), 2000);
+}
+
+function spawnLensFlare() {
+  const flare = document.createElement('div');
+  flare.className = 'lens-flare';
+  const rect = card.getBoundingClientRect();
+  flare.style.left = Math.random() * rect.width - 50 + 'px';
+  flare.style.top = Math.random() * rect.height - 50 + 'px';
+  const size = 60 + Math.random() * 100;
+  flare.style.width = size + 'px';
+  flare.style.height = size + 'px';
+  card.appendChild(flare);
+  setTimeout(() => flare.remove(), 800);
+}
+
+function showBottomText() {
+  const text = bottomTexts[Math.floor(Math.random() * bottomTexts.length)];
+  bottomTextEl.textContent = text;
+  bottomTextEl.classList.remove('show');
+  void bottomTextEl.offsetWidth;
+  bottomTextEl.classList.add('show');
+}
+
+function updateMeters() {
+  const percent = Math.min((fryLevel / 20) * 100, 100);
+  fryFill.style.width = percent + '%';
+  fryValue.textContent = fryLevel;
+  fryCount.textContent = `TOTAL FRIES: ${totalFries}`;
+
+  // Color escalation on meter
+  if (fryLevel >= 15) {
+    fryValue.style.color = '#ff00ff';
+    fryFill.style.background = 'linear-gradient(90deg, #ff0000, #ff00ff, #ffff00)';
+  } else if (fryLevel >= 10) {
+    fryValue.style.color = '#ff0000';
+  }
+}
+
+function resetFry() {
+  fryLevel = 0;
+  totalFries = 0;
+  currentAdvice = "";
+
+  textEl.innerHTML = '<span class="advice-placeholder">PRESS THE BUTTON<br>GET WISDOM</span>';
+  textEl.style.fontSize = '';
+  textEl.style.fontFamily = '';
+  textEl.style.animation = '';
+
+  card.style.filter = '';
+  card.style.background = '';
+  card.style.animation = '';
+
+  glitchCyan.style.opacity = 0;
+  glitchRed.style.opacity = 0;
+  jpegArtifacts.style.opacity = 0;
+
+  fryFill.style.width = '0%';
+  fryFill.style.background = '';
+  fryValue.textContent = '0';
+  fryValue.style.color = '';
+  fryCount.textContent = 'TOTAL FRIES: 0';
+}
+
+// Spawn some bg decoration emojis
+function spawnBgEmojis() {
+  const count = 8;
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.className = 'bg-emoji-float';
+    el.textContent = chaosEmojis[Math.floor(Math.random() * chaosEmojis.length)];
+    el.style.left = Math.random() * 90 + 5 + '%';
+    el.style.top = Math.random() * 90 + 5 + '%';
+    el.style.animationDelay = Math.random() * 5 + 's';
+    el.style.animationDuration = 6 + Math.random() * 6 + 's';
+    document.body.appendChild(el);
+  }
+}
+spawnBgEmojis();
+</script>
+</body>
+</html>
